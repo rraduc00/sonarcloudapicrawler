@@ -16,7 +16,7 @@ import requests
 import json
 import sys
 
-###
+############################↓↓↓ Requesting project IDS ↓↓↓######################################
 def APIProjectRequest():
 	global remainingResults
 	global queryJsonResponse
@@ -50,8 +50,6 @@ def APIProjectRequest():
 		remainingResults = 0
 	print("#### There are " + str(remainingResults) + " left to print ####")
 
-###
-
 p = 1
 ps = 500
 remainingResults = 0
@@ -60,13 +58,16 @@ queryJsonResponse = 0
 APIProjectRequest()
 
 while remainingResults > 500:
+	if p == 20: # 500 results * 20 pages = 10000 limit reached
+		break
 	p+=1
 	print("#### Querying again. Requesting pageindex " + str(p) + " ####")
 	APIProjectRequest()
 
 
-#################################################################################################
+#################################↑↑↑  Requesting project IDS  ↑↑↑################################
 
+#################################↓↓↓ Requesting vulnerabilities ↓↓↓##############################
 """
 Here are the keys of every single repo that meets the following conditions:
 	1. Is public 
@@ -115,6 +116,16 @@ def APIVulnsRequest():
 APIVulnsRequest()
 
 while remainingResults > 500:
+	if p == 20: # 500 results * 20 pages = 10000 limit reached
+		break
 	p+=1
 	print("#### Querying again. Requesting pageindex " + str(p) + " ####")
 	APIVulnsRequest()
+
+###############################↑↑↑ Requesting vulnerabilities ↑↑↑################################
+
+##################################↓↓↓ Requesting sourcecode ↓↓↓##################################
+
+
+
+
