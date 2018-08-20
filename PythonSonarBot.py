@@ -4,10 +4,13 @@
 @Author Razvan Raducu
 
 CONSTRAINTS: As of 26th of July 2018 SonarCloud API is limited to the first 10000 results. 
-You cannot query more than that. THIS CONSTRAINT IS APPLIED TO EVERYSINGLE QUERY. That is,
+You cannot query more than that. THIS CONSTRAINT IS APPLIED TO EVERY SINGLE QUERY. That is,
 when requesting all the projects that meet the filter, only 10000 results can be seen.
 When requesting the vulnerability list of the corresponeding key to each result, only
-10000 vulnerabilities can be seen.
+10000 vulnerabilities can be seen and so on.
+
+#TODO COMENTS
+
 """
 
 
@@ -67,6 +70,42 @@ while remainingResults > 500:
 
 #################################↑↑↑  Requesting project IDS  ↑↑↑################################
 
+##################################↓↓↓ Requesting sourcecode ↓↓↓##################################
+
+"""
+When requesting sourcecode only the key is needed, as stated by the api DOCS 
+https://sonarcloud.io/web_api/api/sources/raw. The key is ['issues']['component']
+value from the queryJsonResponse at this moment.
+"""
+
+def APISourceCodeRequest():
+	url = 'https://sonarcloud.io/api/sources/raw'
+
+	# For each project ID, we get its source code and name it according to the following pattern:
+	# fileKey_startLine:endLine.c
+
+	with open('sonarQueryResults.json') as data_file:    
+		data = json.load(data_file)
+
+	for issue in data['issues']:
+		fileKey = issue['component']
+		parameters = {'key':fileKey}
+		try:
+			req = requests.get(url, params=parameters)
+		except requests.exceptions.RequestException as e:
+			print(e)
+			print("Aborting")
+			sys.exit(1)
+
+		print("#### Request made to " + req.url + " ####")
+
+		# Writing the results of the query to a file
+		fileName = (str(fileKey) + '_' + str(issue['textRange']['startLine']) + ':' + str(issue['textRange']['endLine']) + '.c').replace('/','%3A')
+		with open('./'+fileName,'wb+') as file:
+			file.write(req.content)
+
+##################################↑↑↑ Requesting sourcecode ↑↑↑##################################
+
 #################################↓↓↓ Requesting vulnerabilities ↓↓↓##############################
 """
 Here are the keys of every single repo that meets the following conditions:
@@ -79,7 +118,7 @@ for component in queryJsonResponse['components']:
 	# It's appended into the list to compose the following request.
 	projectIds += str(component['key']) + ","
 
-# Deletion of trailing comma. 
+# Deletion of trailing comma. (Right side of index specifier is exclusive)
 projectIds = projectIds[:-1]
 #print(projectIds)
 
@@ -104,6 +143,10 @@ def APIVulnsRequest():
 	queryJsonResponse = req.json()
 	print(json.dumps(queryJsonResponse, indent=4), file=open('sonarQueryResults.json','a'))
 
+	## REQUESTING SOURCECODE ##
+	print("#### REQUESTING SOURCECODE ####")
+	#APISourceCodeRequest()
+
 	totalResults = queryJsonResponse['total']
 	print("#### Query generated " + str(totalResults) + " results ####")
 
@@ -123,9 +166,4 @@ while remainingResults > 500:
 	APIVulnsRequest()
 
 ###############################↑↑↑ Requesting vulnerabilities ↑↑↑################################
-
-##################################↓↓↓ Requesting sourcecode ↓↓↓##################################
-
-
-
 
