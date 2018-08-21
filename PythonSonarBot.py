@@ -9,7 +9,25 @@ when requesting all the projects that meet the filter, only 10000 results can be
 When requesting the vulnerability list of the corresponeding key to each result, only
 10000 vulnerabilities can be seen and so on.
 
-#TODO COMENTS
+Problem 1.
+We found that we cannot just append every result of the queries looking for vulnerabilities
+into one single file because the result is a malformatted JSON file since there cannot be
+more than one JSON object per file. 
+Solution 1.
+The solution is to actually request the first 500 
+results of the vulnerability query (page 1) and write them to a file. Immediately after,
+parse that file and request the corresponding source code. When we got it, request
+the next 500 (page 2) vulnerabilities, write the result to a file (not append) and, once again,
+request the sourcecode. This loop goes on until we reach the 10000 results limit imposed
+by Sonarcloud's API. 
+
+Problem 2.
+Turns out each vulnerable code line is a different entry from the same JSON list. That is,
+we could have 13 different results, 13 different issues, but they are just different lines
+of the same file. We end up having 13 copies of the same sourcode but with different name. 
+Solution 2.
+What we came up with is simply compiling all vulnerable lines within the same file, download
+the file and append the lines as a comment. (Appending at the end of the file)
 
 """
 
@@ -18,6 +36,7 @@ When requesting the vulnerability list of the corresponeding key to each result,
 import requests 
 import json
 import sys
+import os.path
 
 ############################↓↓↓ Requesting project IDS ↓↓↓######################################
 def APIProjectRequest():
@@ -99,10 +118,22 @@ def APISourceCodeRequest():
 
 		print("#### Request made to " + req.url + " ####")
 
-		# Writing the results of the query to a file
-		fileName = (str(fileKey) + '_' + str(issue['textRange']['startLine']) + ':' + str(issue['textRange']['endLine']) + '.c').replace('/','%3A')
-		with open('./'+fileName,'wb+') as file:
-			file.write(req.content)
+		# We replace '/' with its hex value 2F
+		vulnerableFile = ("./"+(str(fileKey)).replace('/','2F'))
+		print("Looking if "+ vulnerableFile+ " exists.")
+		if not os.path.isfile(vulnerableFile):
+			print("++++> File doesn't exist. Creating <++++")
+			with open(vulnerableFile, 'ab+') as file:
+				file.write(req.content)
+				file.write(str.encode("//\t\t\t\t\t\t↓↓↓VULNERABLE LINES↓↓↓\n"))
+				file.write(str.encode("// Line starting at: " + str(issue['textRange']['startLine']) + ", ending at: " + str(issue['textRange']['endLine']) + ", startOffset: " + str(issue['textRange']['startOffset']) + ", endOffset: " + str(issue['textRange']['endOffset'])+"\n"))
+		else:
+			print("----> File exists. Appending vulnerable lines <----")
+			with open(vulnerableFile, 'ab+') as file:
+				file.write(str.encode("// Line starting at: " + str(issue['textRange']['startLine']) + ", ending at: " + str(issue['textRange']['endLine']) + ", startOffset: " + str(issue['textRange']['startOffset']) + ", endOffset: " + str(issue['textRange']['endOffset'])+"\n"))
+
+		
+		
 
 ##################################↑↑↑ Requesting sourcecode ↑↑↑##################################
 
@@ -145,7 +176,7 @@ def APIVulnsRequest():
 
 	## REQUESTING SOURCECODE ##
 	print("#### REQUESTING SOURCECODE ####")
-	#APISourceCodeRequest()
+	APISourceCodeRequest()
 
 	totalResults = queryJsonResponse['total']
 	print("#### Query generated " + str(totalResults) + " results ####")
