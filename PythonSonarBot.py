@@ -54,14 +54,28 @@ import json
 import sys
 import os.path
 
-############################↓↓↓ Detecting verbose mode ↓↓↓######################################
-print("#### Append -v to execute verbosely. ####\n")
-verbose = 0
-sys.argv[1] == '-v' ? verbose +=1
-verbosePrint = print if verbose else lambda *a, **k: None
+def printUsage():
+	print("Usage:\n"+
+		"Execute it with command \"./PythonSonarBot.py\". Make sure it has execute permission.\n"+
+		"The script receives the following arguments: \n"+
+		"\tThe directory you want the sourcecode to be downloaded in. Example: ./PythonSonarBot.py ./DataSet\n"+
+		"The script receives the following options: \n"+
+		"\tNo option. When no option is specified it will execute in quiet mode.\n"+
+		"\t-v option is used for verbose mode. Example: ./PythonSonarBot ./DataSet -v\n")
+	sys.exit()
 
-if !verbose print("#### OMMITING VERBOSE MODE ####")
-############################↑↑↑ Detecting verbose mode ↑↑↑######################################
+############################↓↓↓ Detecting arguments and options ↓↓↓######################################
+print("#### Append -h to print usage. (./PythonSonarBot.py -h) ####\n")
+verbose = 0
+if len(sys.argv) > 1:
+	if sys.argv[1] == '-h':
+		printUsage()
+	verbose +=1 if sys.argv[1] == '-v' else print("#### Executing in quiet mode. ####")
+else: 
+	print("#### Executing in quiet mode. ####")
+
+verbosePrint = print if verbose else lambda k: None
+############################↑↑↑ Detecting arguments and options ↑↑↑######################################
 
 ############################↓↓↓ Requesting project IDS ↓↓↓######################################
 def APIProjectRequest():
