@@ -2,6 +2,9 @@
 
 """
 @Author Razvan Raducu
+Gonzalo Esteban Gonzales
+Flavio Rodrigues Dias
+Camino Fernández LLamas
 
 CONSTRAINTS: As of 26th of July 2018 SonarCloud API is limited to the first 10000 results. 
 You cannot query more than that. THIS CONSTRAINT IS APPLIED TO EVERY SINGLE QUERY. That is,
@@ -29,6 +32,19 @@ Solution 2.
 What we came up with is simply compiling all vulnerable lines within the same file, download
 the file and append the lines as a comment. (Appending at the end of the file)
 
+Problem 3.
+Apparently SonarCloud maintains a list of issues even though the file those issues arise 
+from got deleted long time ago. The results is a file whose sole content is a json list
+called "errors" containing a "msg". 
+Solution 3.
+The solution is pretty simple, we inspect the content that's about to be written out in 
+the corresponeding file. If it contains a "errors" json list, we skip it. 
+
+TODO 1. Arguments 
+			Export folder
+			-v Verbose mode
+			Create directory
+
 """
 
 
@@ -37,6 +53,15 @@ import requests
 import json
 import sys
 import os.path
+
+############################↓↓↓ Detecting verbose mode ↓↓↓######################################
+print("#### Append -v to execute verbosely. ####\n")
+verbose = 0
+sys.argv[1] == '-v' ? verbose +=1
+verbosePrint = print if verbose else lambda *a, **k: None
+
+if !verbose print("#### OMMITING VERBOSE MODE ####")
+############################↑↑↑ Detecting verbose mode ↑↑↑######################################
 
 ############################↓↓↓ Requesting project IDS ↓↓↓######################################
 def APIProjectRequest():
@@ -49,28 +74,28 @@ def APIProjectRequest():
 	try:
 		req = requests.get(url, params=parameters)
 	except requests.exceptions.RequestException as e:
-		print(e)
-		print("Aborting")
+		#print(e)
+		#print("Aborting")
 		sys.exit(1)
 
-	print("#### Request made to " + req.url + " ####")
+	verbosePrint("#### Request made to " + req.url + " ####")
 
 	# Writing the results of the query to a file
 	queryJsonResponse = req.json()
 	totalResults = queryJsonResponse['paging']['total']
-	print("#### Query generated " + str(totalResults) + " results ####")
+	verbosePrint("#### Query generated " + str(totalResults) + " results ####")
 
 	
 
-	#print("#### Writing page " + str(p) + " to file ####")
+	verbosePrint("#### Writing page " + str(p) + " to file ####")
 
 	# The writing is done in 'a' (append) mode (optional)
-	#print(json.dumps(queryJsonResponse, indent=4), file=open('sonarQueryResults.json','a'))
+	##print(json.dumps(queryJsonResponse, indent=4), file=open('sonarQueryResults.json','a'))
 
 	remainingResults = totalResults - (ps*p)
 	if remainingResults < 0:
 		remainingResults = 0
-	print("#### There are " + str(remainingResults) + " left to print ####")
+	#print("#### There are " + str(remainingResults) + " left to #print ####")
 
 p = 1
 ps = 500
@@ -83,7 +108,7 @@ while remainingResults > 500:
 	if p == 20: # 500 results * 20 pages = 10000 limit reached
 		break
 	p+=1
-	print("#### Querying again. Requesting pageindex " + str(p) + " ####")
+	verbosePrint("#### Querying again. Requesting pageindex " + str(p) + " ####")
 	APIProjectRequest()
 
 
@@ -116,19 +141,24 @@ def APISourceCodeRequest():
 			print("Aborting")
 			sys.exit(1)
 
-		print("#### Request made to " + req.url + " ####")
+		# If the file contains errors because it was not found, we simply skip it.
+		if req.content.find(b"{\"errors\":[{\"msg\":") != -1:
+			print("#### FILE " + req.url + " SKIPPED BECAUSE IT CONTAINED ERRORS ####\n")
+			print(req.content)
+			print("######################\n")
+			continue
 
 		# We replace '/' with its hex value 2F
-		vulnerableFile = ("./"+(str(fileKey)).replace('/','2F'))
-		print("Looking if "+ vulnerableFile+ " exists.")
+		vulnerableFile = ("./dump2/"+(str(fileKey)).replace('/','2F'))
+		verbosePrint("Looking if "+ vulnerableFile+ " exists.")
 		if not os.path.isfile(vulnerableFile):
-			print("++++> File doesn't exist. Creating <++++")
+			verbosePrint("++++> File doesn't exist. Creating <++++")
 			with open(vulnerableFile, 'ab+') as file:
 				file.write(req.content)
 				file.write(str.encode("//\t\t\t\t\t\t↓↓↓VULNERABLE LINES↓↓↓\n"))
 				file.write(str.encode("// Line starting at: " + str(issue['textRange']['startLine']) + ", ending at: " + str(issue['textRange']['endLine']) + ", startOffset: " + str(issue['textRange']['startOffset']) + ", endOffset: " + str(issue['textRange']['endOffset'])+"\n"))
 		else:
-			print("----> File exists. Appending vulnerable lines <----")
+			verbosePrint("----> File exists. Appending vulnerable lines <----")
 			with open(vulnerableFile, 'ab+') as file:
 				file.write(str.encode("// Line starting at: " + str(issue['textRange']['startLine']) + ", ending at: " + str(issue['textRange']['endLine']) + ", startOffset: " + str(issue['textRange']['startOffset']) + ", endOffset: " + str(issue['textRange']['endOffset'])+"\n"))
 
@@ -151,7 +181,6 @@ for component in queryJsonResponse['components']:
 
 # Deletion of trailing comma. (Right side of index specifier is exclusive)
 projectIds = projectIds[:-1]
-#print(projectIds)
 
 p = 1
 remainingResults = 0
@@ -168,24 +197,24 @@ def APIVulnsRequest():
 		print("Aborting")
 		sys.exit(1)
 
-	print("#### Request made to " + req.url + " ####")
+	verbosePrint("#### Request made to " + req.url + " ####")
 
 	# Writing the results of the query to a file
 	queryJsonResponse = req.json()
-	print(json.dumps(queryJsonResponse, indent=4), file=open('sonarQueryResults.json','a'))
+	print(json.dumps(queryJsonResponse, indent=4), file=open('sonarQueryResults.json','w'))
 
 	## REQUESTING SOURCECODE ##
-	print("#### REQUESTING SOURCECODE ####")
+	verbosePrint("#### REQUESTING SOURCECODE ####")
 	APISourceCodeRequest()
 
 	totalResults = queryJsonResponse['total']
-	print("#### Query generated " + str(totalResults) + " results ####")
+	verbosePrint("#### Query generated " + str(totalResults) + " results ####")
 
 
 	remainingResults = totalResults - (ps*p)
 	if remainingResults < 0:
 		remainingResults = 0
-	print("#### There are " + str(remainingResults) + " left to print ####")
+	verbosePrint("#### There are " + str(remainingResults) + " left to print ####")
 
 APIVulnsRequest()
 
@@ -193,7 +222,7 @@ while remainingResults > 500:
 	if p == 20: # 500 results * 20 pages = 10000 limit reached
 		break
 	p+=1
-	print("#### Querying again. Requesting pageindex " + str(p) + " ####")
+	verbosePrint("#### Querying again. Requesting pageindex " + str(p) + " ####")
 	APIVulnsRequest()
 
 ###############################↑↑↑ Requesting vulnerabilities ↑↑↑################################
