@@ -40,11 +40,6 @@ Solution 3.
 The solution is pretty simple, we inspect the content that's about to be written out in 
 the corresponeding file. If it contains a "errors" json list, we skip it. 
 
-TODO 1. Arguments 
-			Export folder
-			-v Verbose mode
-			Create directory
-
 """
 
 
@@ -52,7 +47,7 @@ TODO 1. Arguments
 import requests 
 import json
 import sys
-import os.path
+import os
 
 def printUsage():
 	print("Usage:\n"+
@@ -64,15 +59,37 @@ def printUsage():
 		"\t-v option is used for verbose mode. Example: ./PythonSonarBot ./DataSet -v\n")
 	sys.exit()
 
+def checkPath(path):
+	if not os.path.exists(path):
+		try:
+			os.makedirs(path)
+		except OSError as err:
+			print("Error: {0}".format(err))
+			sys.exit()
+
+
 ############################↓↓↓ Detecting arguments and options ↓↓↓######################################
 print("#### Append -h to print usage. (./PythonSonarBot.py -h) ####\n")
 verbose = 0
-if len(sys.argv) > 1:
+dumpDir = ""
+if len(sys.argv) == 2:
 	if sys.argv[1] == '-h':
 		printUsage()
-	verbose +=1 if sys.argv[1] == '-v' else print("#### Executing in quiet mode. ####")
-else: 
-	print("#### Executing in quiet mode. ####")
+	else:
+		dumpDir = sys.argv[1]
+		checkPath(dumpDir)
+elif len(sys.argv) == 3: 
+	if sys.argv[2] == '-v': verbose +=1 
+	else:
+		print("Wrong usage. Aborting")
+		sys.exit() 
+	dumpDir = sys.argv[1]
+	checkPath(dumpDir)
+else:
+	print("Wrong usage. Aborting")
+	sys.exit()
+
+print("#### Executing verbosely") if verbose else print("#### Executing in quiet mode. ####")
 
 verbosePrint = print if verbose else lambda k: None
 ############################↑↑↑ Detecting arguments and options ↑↑↑######################################
@@ -163,7 +180,7 @@ def APISourceCodeRequest():
 			continue
 
 		# We replace '/' with its hex value 2F
-		vulnerableFile = ("./dump2/"+(str(fileKey)).replace('/','2F'))
+		vulnerableFile = (str(dumpDir)+"/"+(str(fileKey)).replace('/','2F'))
 		verbosePrint("Looking if "+ vulnerableFile+ " exists.")
 		if not os.path.isfile(vulnerableFile):
 			verbosePrint("++++> File doesn't exist. Creating <++++")
