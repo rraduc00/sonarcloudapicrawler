@@ -2,7 +2,7 @@
 
 """
 @Author Razvan Raducu
-Gonzalo Esteban Gonzales
+Gonzalo Esteban Costales
 Flavio Rodrigues Dias
 Camino Fernández LLamas
 
@@ -39,6 +39,8 @@ called "errors" containing a "msg".
 Solution 3.
 The solution is pretty simple, we inspect the content that's about to be written out in 
 the corresponeding file. If it contains a "errors" json list, we skip it. 
+
+It will take a while to download all sourcecode because requests are sequential. 
 
 """
 
@@ -105,9 +107,8 @@ def APIProjectRequest():
 	try:
 		req = requests.get(url, params=parameters)
 	except requests.exceptions.RequestException as e:
-		#print(e)
-		#print("Aborting")
-		sys.exit(1)
+		print("Error: {0}".format(e))
+		sys.exit()
 
 	verbosePrint("#### Request made to " + req.url + " ####")
 
@@ -115,8 +116,6 @@ def APIProjectRequest():
 	queryJsonResponse = req.json()
 	totalResults = queryJsonResponse['paging']['total']
 	verbosePrint("#### Query generated " + str(totalResults) + " results ####")
-
-	
 
 	verbosePrint("#### Writing page " + str(p) + " to file ####")
 
@@ -126,7 +125,7 @@ def APIProjectRequest():
 	remainingResults = totalResults - (ps*p)
 	if remainingResults < 0:
 		remainingResults = 0
-	#print("#### There are " + str(remainingResults) + " left to #print ####")
+	verbosePrint("#### There are " + str(remainingResults) + " left to #print ####")
 
 p = 1
 ps = 500
