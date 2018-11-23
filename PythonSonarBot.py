@@ -144,6 +144,70 @@ while remainingResults > 500:
 
 #################################↑↑↑  Requesting project IDS  ↑↑↑################################
 
+
+##################################↓↓↓ Obtaining function range within file ↓↓↓##################################
+"""
+This function is the one that actually discovers which line and offset the vulenrable function ends.
+It takes the vulnerable file, the starting line of bulnerable function and the starting offset of vulnerable
+function. 
+It traverses the line seeking and counting matching prenthesis. If the parenthesis do not match, an empty list will
+be returned. 
+
+Returns: A list containing [endLineOfVulnerableFunction, endOffsetOfVulnerableFunction]
+"""
+
+def functionRangeCalculator(lines, startLine, startOffset, evaluate, pNumber):
+	"""
+	One must be subtracted from linde index since array is 0 based
+	"""
+	lineNumber = startLine-1
+	line = lines[lineNumber]
+	line = line[startOffset:]
+
+	print("La línea vulnerable es: ", line, " que es el numero: ", startLine)
+
+	"""
+	Aux flag for recursivity
+	"""
+	evaluating = evaluate
+	delegate = False
+	parenNumber = pNumber
+	solutionArray = 0
+	traversedChars = 0
+
+	for char in line:
+		traversedChars += 1
+		if char == '(':
+			parenNumber += 1
+			evaluating = True
+		elif char == ')':
+			parenNumber -= 1
+		elif char == '\n':
+			delegate = True
+			lineNumber += 1
+			solutionArray = functionRangeCalculator(lines, 
+				lineNumber, 
+				0, 
+				evaluating, 
+				parenNumber)
+		"""
+		End of recursivity. We sum 1 to conver from index-based numeration.
+		"""
+		if(evaluating and not parenNumber and not delegate):
+			endLine = lineNumber+1
+			endOffset = startOffset + traversedChars + 1
+			break
+		elif(evaluating and not parenNumber and delegate):
+			endLine = solutionArray[0]+1
+			endOffset = solutionArray[1]+1
+			break
+
+	print("El final de la llamada vulnerable es la línea: ", endLine, " con el offset: ", endOffset)
+
+	return [endLine, endOffset]
+
+#################################↑↑↑  Obtaining function range within file   ↑↑↑################################
+
 ##################################↓↓↓ Requesting sourcecode ↓↓↓##################################
 
 """
@@ -158,6 +222,10 @@ def APISourceCodeRequest():
 	# For each project ID, we get its source code and name it according to the following pattern:
 	# fileKey_startLine:endLine.c
 
+	"""
+	Opening the temporal file sonarQueryResults.json, we read each ['issues']['component'] value
+	and request it to /sources/raw
+	"""
 	with open('sonarQueryResults.json') as data_file:    
 		data = json.load(data_file)
 
@@ -181,18 +249,45 @@ def APISourceCodeRequest():
 		# We replace '/' with its hex value 2F
 		vulnerableFile = (str(dumpDir)+"/"+(str(fileKey)).replace('/','2F'))
 		verbosePrint("Looking if "+ vulnerableFile+ " exists.")
+
+		startLine = issue['textRange']['startLine']
+		# 1 is added to startOffset so we can properly use the value within clang.
+		startOffset = issue['textRange']['startOffset']+1
+
+		endLine, endOffest = 0, 0
+
 		if not os.path.isfile(vulnerableFile):
+
 			verbosePrint("++++> File doesn't exist. Creating <++++")
 			with open(vulnerableFile, 'ab+') as file:
 				file.write(req.content)
-				file.write(str.encode("//\t\t\t\t\t\t↓↓↓VULNERABLE LINES↓↓↓\n"))
-				file.write(str.encode("// Line starting at: " + str(issue['textRange']['startLine']) + ", ending at: " + str(issue['textRange']['endLine']) + ", startOffset: " + str(issue['textRange']['startOffset']) + ", endOffset: " + str(issue['textRange']['endOffset'])+"\n"))
+
+			with open(vulnerableFile, 'r') as file: 
+				lines = file.readlines()
+
+				functionEndRange = functionRangeCalculator(lines, startLine, startOffset, False, 0)	
+
+				endLine = functionEndRange[0] 
+				endOffset = functionEndRange[1]
+	
+	
+			with open(vulnerableFile, 'ab+') as file: 	
+				file.write(str.encode("///###BEGIN_VULNERABLE_LINES###\n\n"))
+				file.write(str.encode("///" + str(startLine) + "," + str(startOffset) + ";" + str(endLine) + "," + str(endOffset) +"\n\n"))
 		else:
 			verbosePrint("----> File exists. Appending vulnerable lines <----")
-			with open(vulnerableFile, 'ab+') as file:
-				file.write(str.encode("// Line starting at: " + str(issue['textRange']['startLine']) + ", ending at: " + str(issue['textRange']['endLine']) + ", startOffset: " + str(issue['textRange']['startOffset']) + ", endOffset: " + str(issue['textRange']['endOffset'])+"\n"))
+			with open(vulnerableFile, 'r') as file: 
+				lines = file.readlines()
 
-		
+				functionEndRange = functionRangeCalculator(lines, startLine, startOffset, False, 0)	
+
+				endLine = functionEndRange[0] 
+				endOffset = functionEndRange[1]
+	
+	
+			with open(vulnerableFile, 'ab+') as file: 	
+				file.write(str.encode("///###BEGIN_VULNERABLE_LINES###\n\n"))
+				file.write(str.encode("///" + str(startLine) + "," + str(startOffset) + ";" + str(endLine) + "," + str(endOffset) +"\n\n"))
 		
 
 ##################################↑↑↑ Requesting sourcecode ↑↑↑##################################
@@ -205,6 +300,12 @@ Here are the keys of every single repo that meets the following conditions:
 	3. Its security rating is >= 2
 """
 projectIds = "" 
+
+"""
+The value of queryJsonResponse is retrieved at this point because the total number of
+projects that meets our filter, as of right now, is 417. Thus, APIProjectRequest() gets
+executed only once and queryJsonResponse has all the 417 projects. 
+"""
 for component in queryJsonResponse['components']:
 	# It's appended into the list to compose the following request.
 	projectIds += str(component['key']) + ","
