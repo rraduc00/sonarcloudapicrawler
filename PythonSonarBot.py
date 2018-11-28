@@ -182,9 +182,10 @@ def functionRangeCalculator(lines, startLine, startOffset, evaluate, pNumber):
 			evaluating = True
 		elif char == ')':
 			parenNumber -= 1
-		elif char == '\n':
+		elif str(char).isSpace():
 			delegate = True
 			lineNumber += 1
+			print("### ESTOY EVALUANDO LA LÍNEA: ", str(lineNumber), " y el caracter que estoy analizando es: ", str(char))
 			solutionArray = functionRangeCalculator(lines, 
 				lineNumber, 
 				0, 
