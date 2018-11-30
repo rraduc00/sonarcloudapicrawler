@@ -176,33 +176,37 @@ def functionRangeCalculator(lines, startLine, startOffset, evaluate, pNumber):
 	traversedChars = 0
 
 	for char in line:
+		print("\n### ESTOY ANALIZANDO EL CHAR:[", char, "] de la línea: ",startLine)
 		traversedChars += 1
 		if char == '(':
 			parenNumber += 1
 			evaluating = True
 		elif char == ')':
 			parenNumber -= 1
-		elif str(char).isSpace():
+		elif char == '\n':
 			delegate = True
-			lineNumber += 1
-			print("### ESTOY EVALUANDO LA LÍNEA: ", str(lineNumber), " y el caracter que estoy analizando es: ", str(char))
 			solutionArray = functionRangeCalculator(lines, 
-				lineNumber, 
+				startLine + 1 , 
 				0, 
 				evaluating, 
 				parenNumber)
 		"""
-		End of recursivity. We sum 1 to conver from index-based numeration.
+		End of recursivity. We sum 1 to convert from index-based numeration.
 		"""
+		print("ParenNumber is #############============> ", parenNumber)
 		if(evaluating and not parenNumber and not delegate):
 			endLine = lineNumber+1
 			endOffset = startOffset + traversedChars + 1
 			break
-		elif(evaluating and not parenNumber and delegate):
+		elif(evaluating and delegate):
 			endLine = solutionArray[0]+1
 			endOffset = solutionArray[1]+1
 			break
 
+			"""
+			TODO: There are errors when starting offset is inline. For example:
+						"%s", buffer);
+			"""
 	print("El final de la llamada vulnerable es la línea: ", endLine, " con el offset: ", endOffset)
 
 	return [endLine, endOffset]
@@ -266,7 +270,7 @@ def APISourceCodeRequest():
 			with open(vulnerableFile, 'r') as file: 
 				lines = file.readlines()
 
-				functionEndRange = functionRangeCalculator(lines, startLine, startOffset, False, 0)	
+				functionEndRange = functionRangeCalculator(lines, startLine, startOffset-1, False, 0)	
 
 				endLine = functionEndRange[0] 
 				endOffset = functionEndRange[1]
@@ -280,7 +284,7 @@ def APISourceCodeRequest():
 			with open(vulnerableFile, 'r') as file: 
 				lines = file.readlines()
 
-				functionEndRange = functionRangeCalculator(lines, startLine, startOffset, False, 0)	
+				functionEndRange = functionRangeCalculator(lines, startLine, startOffset-1, False, 0)	
 
 				endLine = functionEndRange[0] 
 				endOffset = functionEndRange[1]
