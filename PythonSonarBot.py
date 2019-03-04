@@ -156,7 +156,7 @@ be returned.
 Returns: A list containing [endLineOfVulnerableFunction, endOffsetOfVulnerableFunction]
 """
 
-def functionRangeCalculator(lines, startLine, startOffset, evaluate, pNumber):
+def recursiveFunctionRangeCalculator(lines, startLine, startOffset, evaluate, pNumber):
 	"""
 	One must be subtracted from linde index since array is 0 based
 	"""
@@ -165,7 +165,7 @@ def functionRangeCalculator(lines, startLine, startOffset, evaluate, pNumber):
 	line = line[startOffset:]
 
 	print("La línea vulnerable es: ", line, " que es el numero: ", startLine)
-
+	
 	"""
 	Aux flag for recursivity
 	"""
@@ -210,6 +210,29 @@ def functionRangeCalculator(lines, startLine, startOffset, evaluate, pNumber):
 	print("El final de la llamada vulnerable es la línea: ", endLine, " con el offset: ", endOffset)
 
 	return [endLine, endOffset]
+"""
+TODO: Pendiente de implementar:
+	Se ha tenido la siguiente idea: 
+		Puesto que sonarcloud nos devuelve lo que subrayaría, podemos comprobar en base al
+		endoffset. Esto es, comprobar hasta dónde subrayaría. Si el siguiente caracter es
+		un paréntesis de paertura, significa que ha subrayado una función y hacemos el balanceo
+		de paréntesis habitual. Si se encuentra cualquier otro caracter (sin contar los espacio)
+		significa que ha subrayado otra cosa. En ese caso hacemos balanceo hacia la izquierda
+		hasta encontrar el primer paréntesis de apertura desbalanceado. 
+"""
+def iterativeFunctionRangeCalculator(lines, startLine, startOffset, evaluate, pNumber):
+
+	line = lines[startLine]
+	
+	contart = 0
+	for char in line[startOffset:]:
+		if char == ')':
+			contart -= 1
+		elif char == '(':
+			contart +=1
+
+
+
 
 #################################↑↑↑  Obtaining function range within file   ↑↑↑################################
 
@@ -270,7 +293,7 @@ def APISourceCodeRequest():
 			with open(vulnerableFile, 'r') as file: 
 				lines = file.readlines()
 
-				functionEndRange = functionRangeCalculator(lines, startLine, startOffset-1, False, 0)	
+				functionEndRange = recursiveFunctionRangeCalculator(lines, startLine, startOffset-1, False, 0)	
 
 				endLine = functionEndRange[0] 
 				endOffset = functionEndRange[1]
@@ -284,7 +307,7 @@ def APISourceCodeRequest():
 			with open(vulnerableFile, 'r') as file: 
 				lines = file.readlines()
 
-				functionEndRange = functionRangeCalculator(lines, startLine, startOffset-1, False, 0)	
+				functionEndRange = recursiveFunctionRangeCalculator(lines, startLine, startOffset-1, False, 0)	
 
 				endLine = functionEndRange[0] 
 				endOffset = functionEndRange[1]
